@@ -7,7 +7,7 @@
 
 int Minigame::runGuessingGame() {
     const int MAX_GUESSES = 6;
-    const int secret = (std::rand() % 100) + 1; // 1..100
+    const int secret = (std::rand() % 100) + 1;
 
     Display::printDivider();
     std::cout << Color::BRIGHT_CYAN << Color::BOLD
@@ -21,11 +21,10 @@ int Minigame::runGuessingGame() {
 
         int guess = 0;
         if (!(std::cin >> guess)) {
-            // Handle non-numeric input gracefully
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             std::cout << Color::YELLOW << "  Please enter a number.\n" << Color::RESET;
-            --attempt; // don't count bad input as a guess
+            --attempt;
             continue;
         }
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

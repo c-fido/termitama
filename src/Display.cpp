@@ -4,16 +4,14 @@
 #include <iomanip>
 #include <cmath>
 
-// ── ASCII art library ────────────────────────────────────────────────────────
-// Each entry is a vector of lines; the color prefix is applied per-art.
+
 
 namespace {
 
-// Baby stage art (small, round, simple)
 const char* BABY_HAPPY[] = {
     "    .~~~.    ",
     "   (o ^ o)   ",
-    "   ( ___ )   ",
+    "   (  v  )   ",
     "    `---'    ",
     "   /|   |\\  ",
     nullptr
@@ -51,7 +49,6 @@ const char* BABY_SICK[] = {
     nullptr
 };
 
-// Child stage art (more defined limbs)
 const char* CHILD_HAPPY[] = {
     "   .(~~~).   ",
     "  (^ v ^ )   ",
@@ -98,7 +95,6 @@ const char* CHILD_SICK[] = {
     nullptr
 };
 
-// Teen stage art (taller, spiky detail)
 const char* TEEN_HAPPY[] = {
     "  /\\ /\\ /\\   ",
     " ( ^  w  ^ )  ",
@@ -148,7 +144,6 @@ const char* TEEN_SICK[] = {
     nullptr
 };
 
-// Adult stage art (regal, detailed)
 const char* ADULT_HAPPY[] = {
     " *  /^^^^^\\  * ",
     "   ( O . O )   ",
@@ -239,10 +234,9 @@ const char** selectArt(PetState::EvolutionStage stage, PetState::Mood mood) {
             }
             break;
     }
-    return BABY_NEUTRAL; // fallback
+    return BABY_NEUTRAL;
 }
 
-// Choose art color based on mood + stage
 const char* artColor(PetState::Mood mood, PetState::EvolutionStage stage) {
     using M = PetState::Mood;
     using S = PetState::EvolutionStage;
@@ -252,12 +246,12 @@ const char* artColor(PetState::Mood mood, PetState::EvolutionStage stage) {
     if (stage == S::Adult)   return Color::BRIGHT_MAGENTA;
     if (stage == S::Teen)    return Color::BRIGHT_CYAN;
     if (stage == S::Child)   return Color::BRIGHT_GREEN;
-    return Color::BRIGHT_YELLOW; // Baby happy/neutral
+    return Color::BRIGHT_YELLOW;
 }
 
-} // anonymous namespace
+}
 
-// ── Display::getAsciiArt ─────────────────────────────────────────────────────
+
 std::string Display::getAsciiArt(PetState::EvolutionStage stage, PetState::Mood mood) {
     const char** lines = selectArt(stage, mood);
     const char* col    = artColor(mood, stage);
@@ -271,9 +265,6 @@ std::string Display::getAsciiArt(PetState::EvolutionStage stage, PetState::Mood 
     return out;
 }
 
-// ── Display::statBar ─────────────────────────────────────────────────────────
-// Renders a colored block bar: [████████░░░░] 80/100
-// Color: green >60, yellow 30-60, red <30
 std::string Display::statBar(float value, float max, int width) {
     float ratio    = std::max(0.0f, std::min(value / max, 1.0f));
     int filled     = static_cast<int>(std::round(ratio * width));
@@ -286,14 +277,14 @@ std::string Display::statBar(float value, float max, int width) {
 
     std::ostringstream ss;
     ss << "[" << barColor;
-    for (int i = 0; i < filled; ++i) ss << "\xE2\x96\x88"; // UTF-8 FULL BLOCK
+    for (int i = 0; i < filled; ++i) ss << "\xE2\x96\x88"; 
     ss << Color::DIM;
-    for (int i = 0; i < empty;  ++i) ss << "\xE2\x96\x91"; // UTF-8 LIGHT SHADE
+    for (int i = 0; i < empty;  ++i) ss << "\xE2\x96\x91"; 
     ss << Color::RESET << "]";
     return ss.str();
 }
 
-// ── Display::statLine ────────────────────────────────────────────────────────
+
 std::string Display::statLine(const std::string& label, float value, float max) {
     const char* valColor =
         (value / max > 0.60f) ? Color::BRIGHT_GREEN :
@@ -309,13 +300,11 @@ std::string Display::statLine(const std::string& label, float value, float max) 
     return ss.str();
 }
 
-// ── Display::clearScreen ─────────────────────────────────────────────────────
 void Display::clearScreen() {
-    // ANSI escape: move cursor home + clear screen
+
     std::cout << "\033[2J\033[H";
 }
 
-// ── Display::printBanner ─────────────────────────────────────────────────────
 void Display::printBanner(const std::string& text, const char* color) {
     int len = static_cast<int>(text.size()) + 4;
     std::string border(len, '=');
@@ -326,7 +315,6 @@ void Display::printBanner(const std::string& text, const char* color) {
               << Color::RESET;
 }
 
-// ── Display::printDivider ────────────────────────────────────────────────────
 void Display::printDivider(int width) {
     std::cout << Color::DIM << std::string(width, '-') << Color::RESET << "\n";
 }

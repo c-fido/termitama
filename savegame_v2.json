@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "activePet": 0,
+  "petCount": 1,
+  "pet0_name": "John",
+  "pet0_hunger": 92.5,
+  "pet0_happiness": 98.5,
+  "pet0_energy": 69.8,
+  "pet0_health": 100,
+  "pet0_stage": 0,
+  "pet0_interactions": 13,
+  "pet0_isSick": false,
+  "pet0_lastSaved": 1777669263,
+  "pet0_fsmState": 0,
+  "pet0_g_maxHunger": 100,
+  "pet0_g_maxHappy": 100,
+  "pet0_g_maxEnergy": 100,
+  "pet0_g_maxHealth": 100,
+  "pet0_g_decayRes": 1,
+  "pet0_g_evoVariant": 0,
+  "currency": 130
+}

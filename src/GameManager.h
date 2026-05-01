@@ -1,40 +1,54 @@
 #pragma once
 #include "Pet.h"
+#include "PetFSM.h"
+#include "Inventory.h"
+#include "AudioManager.h"
 #include <string>
-#include <optional>
+#include <vector>
+#include <memory>
 
 class GameManager {
 public:
-    explicit GameManager(const std::string& saveFilePath);
+    GameManager(const std::string& saveFile, const std::string& legacySaveFile);
 
-    // Blocking main loop — returns when the player quits or the pet dies.
     void run();
 
+    static constexpr int MAX_PETS = 6;
+
 private:
-    Pet         pet_;
-    std::string saveFilePath_;
-    bool        running_ = true;
+    std::vector<std::unique_ptr<Pet>> pets_;
+    int                               activePetIdx_ = 0;
+    std::unique_ptr<PetFSM>           fsm_;
+    Inventory                         inventory_;
+    AudioManager                      audio_;
+    std::string                       saveFilePath_;
+    std::string                       legacySavePath_;
+    bool                              running_ = true;
 
-    // ── File I/O ─────────────────────────────────────────────────────────────
-    bool        loadGame();
-    void        saveGame();
+    Pet& activePet();
+    const Pet& activePet() const;
+    void rebuildFSM();
 
-    // ── Time handling ────────────────────────────────────────────────────────
-    // Returns minutes elapsed since pet_.getLastSaved() using std::chrono.
-    long long   minutesSinceLastSave() const;
+    bool loadGame();
+    bool loadLegacyGame();
+    void saveGame();
 
-    // ── UI helpers ───────────────────────────────────────────────────────────
-    void        printStatus() const;
-    void        printMenu()   const;
+    long long minutesSinceLastSave() const;
 
-    // ── Action handlers ──────────────────────────────────────────────────────
-    void        handleFeed();
-    void        handlePlay();
-    void        handleSleep();
-    void        handleQuit();
+    void printStatus()     const;
+    void printMainMenu()   const;
+    void printSleepMenu()  const;
 
-    // ── Post-action bookkeeping ──────────────────────────────────────────────
-    // Applies passive decay, increments interaction count, checks evolution,
-    // and rolls for a random event. Returns any event message to display.
+    void handleFeed();
+    void handlePlay();
+    void handleRest();
+    void handleUseItem();
+    void handleShop();
+    void handlePetBox();
+    void handleWait();
+    void handleQuit();
+
     std::string postActionTick();
+
+    static void pause(const std::string& msg = "");
 };

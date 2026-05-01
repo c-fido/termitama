@@ -1,13 +1,13 @@
 #pragma once
 #include <string>
 
-// Forward-declare to avoid circular dependency
+
 namespace PetState {
     enum class EvolutionStage : int { Baby = 0, Child = 1, Teen = 2, Adult = 3 };
     enum class Mood { Happy, Neutral, Sad, Sleeping, Sick };
 }
 
-// ── ANSI color constants ────────────────────────────────────────────────────
+
 namespace Color {
     constexpr const char* RESET          = "\033[0m";
     constexpr const char* BOLD           = "\033[1m";
@@ -26,20 +26,18 @@ namespace Color {
     constexpr const char* BRIGHT_MAGENTA = "\033[95m";
     constexpr const char* BRIGHT_CYAN    = "\033[96m";
     constexpr const char* BRIGHT_WHITE   = "\033[97m";
-    // Background
     constexpr const char* BG_BLUE        = "\033[44m";
     constexpr const char* BG_CYAN        = "\033[46m";
 }
 
-// ── Display helpers ─────────────────────────────────────────────────────────
+
 namespace Display {
-    // Multi-line ASCII art for the given stage + mood
+
     std::string getAsciiArt(PetState::EvolutionStage stage, PetState::Mood mood);
 
-    // Colored progress bar: [████████░░░░] 80/100
     std::string statBar(float value, float max = 100.0f, int width = 16);
 
-    // Full "label: [bar] value" line with threshold-based color
+
     std::string statLine(const std::string& label, float value, float max = 100.0f);
 
     void clearScreen();
