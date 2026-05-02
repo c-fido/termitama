@@ -422,6 +422,30 @@ void GameManager::handleShop() {
     Shop::run(inventory_, activePet().getName());
 }
 
+void GameManager::handleAdoptPet() {
+    if (static_cast<int>(pets_.size()) >= MAX_PETS) {
+        std::cout << Color::YELLOW
+                  << "\n  Pet Box is full! (" << MAX_PETS << "/" << MAX_PETS << ")\n"
+                  << Color::RESET;
+        pause();
+        return;
+    }
+
+    std::cout << Color::BRIGHT_CYAN << "\n  Adopt a new baby pet!\n" << Color::RESET;
+    std::cout << "  Name your new pet: ";
+
+    std::string name;
+    std::getline(std::cin, name);
+    if (name.empty()) name = "Pixel";
+
+    pets_.push_back(std::make_unique<Pet>(name));
+    std::cout << Color::BRIGHT_GREEN
+              << "  Welcome home, " << name << "!\n" << Color::RESET;
+
+    saveGame();
+    pause();
+}
+
 void GameManager::handlePetBox() {
     while (true) {
         Display::clearScreen();
@@ -450,6 +474,7 @@ void GameManager::handlePetBox() {
 
         std::cout << "\n"
                   << Color::BOLD
+                  << "  A) Adopt new pet\n"
                   << "  S) Switch active pet\n"
                   << "  B) Breed two Adults\n"
                   << "  0) Back\n"
@@ -460,6 +485,11 @@ void GameManager::handlePetBox() {
         std::getline(std::cin, input);
 
         if (input == "0") break;
+
+        if (input == "A" || input == "a") {
+            handleAdoptPet();
+            continue;
+        }
 
         if (input == "S" || input == "s") {
             if (pets_.size() < 2) {

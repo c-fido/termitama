@@ -45,6 +45,7 @@ private:
     void handleUseItem();
     void handleShop();
     void handlePetBox();
+    void handleAdoptPet();
     void handleWait();
     void handleQuit();
 

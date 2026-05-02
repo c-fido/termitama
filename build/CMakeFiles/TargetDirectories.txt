@@ -1,0 +1,3 @@
+/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/CMakeFiles/virtual_pet.dir
+/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/CMakeFiles/edit_cache.dir
+/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/CMakeFiles/rebuild_cache.dir
