@@ -32,5 +32,6 @@
 *.app
 
 # Misc
+pet_save.json
 savegame_v2.json
 build/
