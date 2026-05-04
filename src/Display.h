@@ -26,6 +26,7 @@ namespace Color {
     constexpr const char* BRIGHT_MAGENTA = "\033[95m";
     constexpr const char* BRIGHT_CYAN    = "\033[96m";
     constexpr const char* BRIGHT_WHITE   = "\033[97m";
+    // Background
     constexpr const char* BG_BLUE        = "\033[44m";
     constexpr const char* BG_CYAN        = "\033[46m";
 }
@@ -35,9 +36,8 @@ namespace Display {
 
     std::string getAsciiArt(PetState::EvolutionStage stage, PetState::Mood mood);
 
+    // Progress bar
     std::string statBar(float value, float max = 100.0f, int width = 16);
-
-
     std::string statLine(const std::string& label, float value, float max = 100.0f);
 
     void clearScreen();

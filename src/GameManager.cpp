@@ -422,6 +422,29 @@ void GameManager::handleShop() {
     Shop::run(inventory_, activePet().getName());
 }
 
+void GameManager::handleRenamePet() {
+    std::cout << Color::BRIGHT_CYAN
+              << "\n  Current name: " << activePet().getName() << "\n"
+              << "  Enter a new name: " << Color::RESET;
+
+    std::string name;
+    std::getline(std::cin, name);
+    if (name.empty()) name = "Pixel";
+
+    if (name == activePet().getName()) {
+        std::cout << Color::YELLOW << "  That pet already has that name.\n" << Color::RESET;
+        pause();
+        return;
+    }
+
+    activePet().setName(name);
+    std::cout << Color::BRIGHT_GREEN
+              << "  Your pet is now called " << name << "!\n" << Color::RESET;
+
+    saveGame();
+    pause();
+}
+
 void GameManager::handleAdoptPet() {
     if (static_cast<int>(pets_.size()) >= MAX_PETS) {
         std::cout << Color::YELLOW
@@ -475,6 +498,7 @@ void GameManager::handlePetBox() {
         std::cout << "\n"
                   << Color::BOLD
                   << "  A) Adopt new pet\n"
+                  << "  R) Rename active pet\n"
                   << "  S) Switch active pet\n"
                   << "  B) Breed two Adults\n"
                   << "  0) Back\n"
@@ -488,6 +512,11 @@ void GameManager::handlePetBox() {
 
         if (input == "A" || input == "a") {
             handleAdoptPet();
+            continue;
+        }
+
+        if (input == "R" || input == "r") {
+            handleRenamePet();
             continue;
         }
 

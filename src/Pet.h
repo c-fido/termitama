@@ -76,6 +76,7 @@ public:
 
     void setFSMState(FSMState s)         { fsmState_ = s; }
     void setGenome(const Genome& g)      { genome_ = g; }
+    void setName(const std::string& name) { name_ = name; }
     void setSick(bool v)                 { isSick_ = v; }
     void stampSaveTime()                 { lastSaved_ = std::time(nullptr); }
     void incrementInteractions()         { ++interactionCount_; }
