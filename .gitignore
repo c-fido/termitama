@@ -30,4 +30,7 @@
 *.exe
 *.out
 *.app
+
+# Misc
 savegame_v2.json
+build/

@@ -80,6 +80,18 @@ void Shop::printCatalog(const Inventory& inv) {
     }
 }
 
+std::string Shop::purchase(Inventory& inv, const std::string& itemId) {
+    auto item = getItem(itemId);
+    if (!item) return "Item '" + itemId + "' not found in shop.";
+    if (inv.getCurrency() < item->getPrice()) {
+        return "Not enough coins! Need " + std::to_string(item->getPrice()) +
+               ", have " + std::to_string(inv.getCurrency()) + ".";
+    }
+    inv.spendCurrency(item->getPrice());
+    inv.addItem(item, 1);
+    return "Bought " + item->getName() + " for " + std::to_string(item->getPrice()) + " coins!";
+}
+
 void Shop::run(Inventory& inv, const std::string& petName) {
     static const std::vector<std::string> ORDER = {
         "kibble", "meal", "feast", "remedy", "cureall", "toyball", "crown"

@@ -109,6 +109,10 @@ void Pet::applyInteractionDecay() {
     applyDecayForDuration(5.0f);
 }
 
+void Pet::applyRealtimeTick() {
+    applyDecayForDuration(1.0f);
+}
+
 void Pet::feed(int amount) {
     applyFoodEffect(amount, static_cast<int>(amount * 0.2f));
 }

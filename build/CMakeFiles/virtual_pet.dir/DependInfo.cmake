@@ -18,6 +18,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src/Pet.cpp" "CMakeFiles/virtual_pet.dir/src/Pet.cpp.o" "gcc" "CMakeFiles/virtual_pet.dir/src/Pet.cpp.o.d"
   "/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src/PetFSM.cpp" "CMakeFiles/virtual_pet.dir/src/PetFSM.cpp.o" "gcc" "CMakeFiles/virtual_pet.dir/src/PetFSM.cpp.o.d"
   "/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src/Shop.cpp" "CMakeFiles/virtual_pet.dir/src/Shop.cpp.o" "gcc" "CMakeFiles/virtual_pet.dir/src/Shop.cpp.o.d"
+  "/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src/TuiApp.cpp" "CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.o" "gcc" "CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.o.d"
   "/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src/main.cpp" "CMakeFiles/virtual_pet.dir/src/main.cpp.o" "gcc" "CMakeFiles/virtual_pet.dir/src/main.cpp.o.d"
   )
 
