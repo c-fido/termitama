@@ -1,6 +1,6 @@
 # 🐾 Virtual Pet — A Terminal Tamagotchi Clone
 
-A C++17 terminal-based virtual pet game inspired by the classic Tamagotchi. Raise, feed, play with, and evolve your digital companions — and breed them together to create the next generation.
+A C++17 terminal-based virtual pet game inspired by the classic Tamagotchi. Raise, feed, play with, and evolve your digital companions.
 
 ---
 
