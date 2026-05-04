@@ -46,6 +46,7 @@ private:
     void handleShop();
     void handlePetBox();
     void handleAdoptPet();
+    void handleRenamePet();
     void handleWait();
     void handleQuit();
 
