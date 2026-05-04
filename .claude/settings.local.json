@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C /Users/carlofedolfi/Documents/GitHub/tamagotchi-clone show HEAD:CMakeLists.txt)",
-      "Bash(git -C /Users/carlofedolfi/Documents/GitHub/tamagotchi-clone show tui:CMakeLists.txt)"
-    ]
-  }
-}
