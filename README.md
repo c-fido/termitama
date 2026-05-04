@@ -22,7 +22,7 @@ A C++17 terminal-based virtual pet game inspired by the classic Tamagotchi. Rais
 - **CMake 3.14+**
 - A terminal with ANSI color support (macOS Terminal, Linux terminal, Windows Terminal)
 
-No third-party libraries are required beyond the C++ standard library.
+[FTXUI](https://github.com/ArthurSonzogni/FTXUI) v5 is fetched automatically by CMake at configure time — no manual install needed.
 
 ---
 
@@ -47,25 +47,47 @@ The save file (`savegame_v2.json`) is created automatically in the directory whe
 
 ---
 
+## Interface
+
+The game uses a full-terminal TUI built with FTXUI. The main screen shows your pet's ASCII art, live stat bars, FSM state, coin count, and an event log. Overlaid modals open for the Shop, Inventory, Pet Box, and Minigame.
+
+### Navigation
+
+| Key | Action |
+|---|---|
+| Arrow keys | Navigate lists in Shop, Inventory, and Pet Box |
+| Enter | Confirm selection or submit a text field |
+| Escape | Close the current modal and return to the main view |
+
+Buttons are clickable with the mouse if your terminal supports it.
+
+---
+
 ## How to Play
 
-### Main Menu
+On first launch you'll be prompted to name your pet. After that, the main screen has the following buttons when your pet is awake:
 
-When your pet is awake, you'll see:
+**Feed** — Restore 30 hunger (free, no items required).
 
-```
-1) Feed
-2) Play
-3) Rest
-4) Use Item
-5) Shop
-6) Pet Box
-7) Quit
-```
+**Play** — Launch a number-guessing minigame. You earn coins win or lose:
+- Win: **+50 coins** and a happiness boost
+- Lose: **+15 coins** and a smaller happiness boost
 
-When your pet is sleeping (energy below 15), the menu changes to a rest-only view where you can wait for it to recover.
+**Rest** — Give your pet a break: +40 energy, +5 happiness.
 
-### Stats
+**Use Item** — Opens the Inventory modal; select an item and press Use.
+
+**Shop** — Opens the Shop modal; browse with arrow keys and press Buy.
+
+**Pet Box** — Manage all your pets, adopt new ones, or breed Adults together.
+
+**Quit** — Saves and exits.
+
+When your pet is sleeping (energy too low), only **Wait** and **Quit** are available. Wait passes 15 game-minutes and restores a small amount of energy.
+
+---
+
+## Stats
 
 Your pet has four core stats, each ranging from 0 to their genetic maximum:
 
@@ -77,22 +99,6 @@ Your pet has four core stats, each ranging from 0 to their genetic maximum:
 | **Health** | Pet can become sick; at 0, the pet dies |
 
 Stats decay over time — even while the game is closed (up to a maximum of 12 hours of offline decay).
-
-### Actions
-
-**Feed** — Restore 30 hunger (free, no items required).
-
-**Play** — Launch a number-guessing minigame. You earn coins win or lose:
-- Win: **+50 coins** and a happiness boost
-- Lose: **+15 coins** and a smaller happiness boost
-
-**Rest** — Give your pet a break: +40 energy, +5 happiness.
-
-**Use Item** — Apply an item from your inventory directly to your pet.
-
-**Shop** — Browse and buy items with your coins.
-
-**Pet Box** — Manage all your pets, adopt new ones, or breed Adults together.
 
 ---
 
@@ -130,9 +136,9 @@ The evolution variant is a genetic trait — some pets naturally develop faster 
 
 ## Pet Box
 
-You can own up to **6 pets** at once. Only one pet is "Active" at a time — that's the one you interact with in the main menu.
+You can own up to **6 pets** at once. Only one pet is "Active" at a time — that's the one you interact with in the main screen.
 
-From the Pet Box screen you can:
+From the Pet Box modal you can:
 
 - **Adopt** a new Baby pet (if you have fewer than 6)
 - **Rename** your active pet
@@ -165,4 +171,4 @@ Save file: `savegame_v2.json` (created next to the executable).
 - **Keep health above 50.** Your pet can't evolve while its health is low, and it can get sick if health drops too far.
 - **Play minigames often.** It's the only source of income, and coins are how you afford Cure-Alls when things go wrong.
 - **Breed strategically.** Pets with high stat caps and good decay resistance make for much easier care in later generations.
-- **Don't neglect sleeping pets.** When your active pet is asleep, use the Wait option to pass time and restore its energy rather than just quitting.
+- **Don't neglect sleeping pets.** When your active pet is asleep, use Wait to pass time and restore its energy rather than just quitting.
