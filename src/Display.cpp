@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <vector>
 
 
 
@@ -251,6 +252,15 @@ const char* artColor(PetState::Mood mood, PetState::EvolutionStage stage) {
 
 }
 
+
+std::vector<std::string> Display::getAsciiArtLines(PetState::EvolutionStage stage,
+                                                    PetState::Mood mood) {
+    const char** lines = selectArt(stage, mood);
+    std::vector<std::string> result;
+    for (int i = 0; lines[i] != nullptr; ++i)
+        result.emplace_back(lines[i]);
+    return result;
+}
 
 std::string Display::getAsciiArt(PetState::EvolutionStage stage, PetState::Mood mood) {
     const char** lines = selectArt(stage, mood);

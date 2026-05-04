@@ -19,6 +19,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/virtual_pet.dir/src/PetFSM.cpp.o.d"
   "CMakeFiles/virtual_pet.dir/src/Shop.cpp.o"
   "CMakeFiles/virtual_pet.dir/src/Shop.cpp.o.d"
+  "CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.o"
+  "CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.o.d"
   "CMakeFiles/virtual_pet.dir/src/main.cpp.o"
   "CMakeFiles/virtual_pet.dir/src/main.cpp.o.d"
   "virtual_pet"

@@ -4,9 +4,9 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src
+CXX_INCLUDES = -I/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/src -isystem /Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/_deps/ftxui-src/include
 
-CXX_FLAGSarm64 = -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic
+CXX_FLAGSarm64 = -O3 -DNDEBUG -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic
 
-CXX_FLAGS = -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic
 

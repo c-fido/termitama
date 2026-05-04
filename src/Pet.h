@@ -47,6 +47,7 @@ public:
 
     std::string applyOfflineDecay(long long minutesPassed);
     void        applyInteractionDecay();
+    void        applyRealtimeTick();   // applies 1 game-minute of decay (no message)
 
     bool        checkAndEvolve();
     int         nextEvolutionAt() const;

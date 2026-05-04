@@ -65,6 +65,26 @@ CMAKE_BINARY_DIR = /Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build
 #=============================================================================
 # Targets provided globally by CMake.
 
+# Special rule for the target package
+package: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Run CPack packaging tool..."
+	/opt/homebrew/bin/cpack --config ./CPackConfig.cmake
+.PHONY : package
+
+# Special rule for the target package
+package/fast: package
+.PHONY : package/fast
+
+# Special rule for the target package_source
+package_source:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Run CPack packaging tool for source..."
+	/opt/homebrew/bin/cpack --config ./CPackSourceConfig.cmake
+.PHONY : package_source
+
+# Special rule for the target package_source
+package_source/fast: package_source
+.PHONY : package_source/fast
+
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake cache editor..."
@@ -84,6 +104,51 @@ rebuild_cache:
 # Special rule for the target rebuild_cache
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
+
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/opt/homebrew/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/opt/homebrew/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -128,6 +193,45 @@ virtual_pet: cmake_check_build_system
 virtual_pet/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/virtual_pet.dir/build.make CMakeFiles/virtual_pet.dir/build
 .PHONY : virtual_pet/fast
+
+#=============================================================================
+# Target rules for targets named screen
+
+# Build rule for target.
+screen: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 screen
+.PHONY : screen
+
+# fast build rule for target.
+screen/fast:
+	$(MAKE) $(MAKESILENT) -f _deps/ftxui-build/CMakeFiles/screen.dir/build.make _deps/ftxui-build/CMakeFiles/screen.dir/build
+.PHONY : screen/fast
+
+#=============================================================================
+# Target rules for targets named dom
+
+# Build rule for target.
+dom: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 dom
+.PHONY : dom
+
+# fast build rule for target.
+dom/fast:
+	$(MAKE) $(MAKESILENT) -f _deps/ftxui-build/CMakeFiles/dom.dir/build.make _deps/ftxui-build/CMakeFiles/dom.dir/build
+.PHONY : dom/fast
+
+#=============================================================================
+# Target rules for targets named component
+
+# Build rule for target.
+component: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 component
+.PHONY : component
+
+# fast build rule for target.
+component/fast:
+	$(MAKE) $(MAKESILENT) -f _deps/ftxui-build/CMakeFiles/component.dir/build.make _deps/ftxui-build/CMakeFiles/component.dir/build
+.PHONY : component/fast
 
 src/AudioManager.o: src/AudioManager.cpp.o
 .PHONY : src/AudioManager.o
@@ -369,6 +473,30 @@ src/Shop.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/virtual_pet.dir/build.make CMakeFiles/virtual_pet.dir/src/Shop.cpp.s
 .PHONY : src/Shop.cpp.s
 
+src/TuiApp.o: src/TuiApp.cpp.o
+.PHONY : src/TuiApp.o
+
+# target to build an object file
+src/TuiApp.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/virtual_pet.dir/build.make CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.o
+.PHONY : src/TuiApp.cpp.o
+
+src/TuiApp.i: src/TuiApp.cpp.i
+.PHONY : src/TuiApp.i
+
+# target to preprocess a source file
+src/TuiApp.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/virtual_pet.dir/build.make CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.i
+.PHONY : src/TuiApp.cpp.i
+
+src/TuiApp.s: src/TuiApp.cpp.s
+.PHONY : src/TuiApp.s
+
+# target to generate assembly for a file
+src/TuiApp.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/virtual_pet.dir/build.make CMakeFiles/virtual_pet.dir/src/TuiApp.cpp.s
+.PHONY : src/TuiApp.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -400,7 +528,16 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
+	@echo "... package"
+	@echo "... package_source"
 	@echo "... rebuild_cache"
+	@echo "... component"
+	@echo "... dom"
+	@echo "... screen"
 	@echo "... virtual_pet"
 	@echo "... src/AudioManager.o"
 	@echo "... src/AudioManager.i"
@@ -432,6 +569,9 @@ help:
 	@echo "... src/Shop.o"
 	@echo "... src/Shop.i"
 	@echo "... src/Shop.s"
+	@echo "... src/TuiApp.o"
+	@echo "... src/TuiApp.i"
+	@echo "... src/TuiApp.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

@@ -1,27 +1,46 @@
 #include "GameManager.h"
-#include "Display.h"
-#include "Minigame.h"
 #include "Shop.h"
 #include "Genetics.h"
 #include <chrono>
 #include <fstream>
-#include <iostream>
-#include <limits>
 #include <sstream>
-#include <string>
-#include <algorithm>
 #include <iomanip>
+#include <stdexcept>
+#include <algorithm>
+
+std::string GameManager::stripAnsi(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '\033' && i + 1 < s.size() && s[i + 1] == '[') {
+            i += 2;
+            while (i < s.size() && s[i] != 'm') ++i;
+        } else {
+            out += s[i];
+        }
+    }
+    return out;
+}
 
 GameManager::GameManager(const std::string& saveFile,
                          const std::string& legacySaveFile)
     : saveFilePath_(saveFile), legacySavePath_(legacySaveFile)
 {}
 
+GameManager::~GameManager() {
+    audio_.stop();
+}
+
 Pet& GameManager::activePet() {
     return *pets_[static_cast<size_t>(activePetIdx_)];
 }
+
 const Pet& GameManager::activePet() const {
     return *pets_[static_cast<size_t>(activePetIdx_)];
+}
+
+const Pet& GameManager::getPet(int i) const {
+    return *pets_[static_cast<size_t>(i)];
 }
 
 void GameManager::rebuildFSM() {
@@ -29,106 +48,54 @@ void GameManager::rebuildFSM() {
     fsm_->syncFromPet();
 }
 
-void GameManager::pause(const std::string& msg) {
-    if (!msg.empty()) std::cout << msg;
-    std::cout << "\nPress Enter to continue...";
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+bool GameManager::canInteract() const {
+    return fsm_ && fsm_->canInteract();
 }
 
-void GameManager::run() {
-    Display::clearScreen();
-    Display::printBanner("  VIRTUAL PET  v2.0  ");
+std::string GameManager::fsmStateName() const {
+    return fsm_ ? fsm_->getStateName() : "";
+}
 
-    bool loaded = loadGame();
-    if (!loaded) loaded = loadLegacyGame();
+std::string GameManager::fsmStateDesc() const {
+    return fsm_ ? fsm_->getStateDesc() : "";
+}
 
-    if (!loaded) {
-        std::cout << Color::BRIGHT_YELLOW
-                  << "\nNo save file found. Starting a new game!\n" << Color::RESET
-                  << "\nWhat would you like to name your first pet? ";
-        std::string name;
-        std::getline(std::cin, name);
-        if (name.empty()) name = "Pixel";
-        pets_.push_back(std::make_unique<Pet>(name));
-        activePetIdx_ = 0;
-        std::cout << Color::BRIGHT_GREEN << "\nWelcome, " << name << "!\n" << Color::RESET;
-    }
+long long GameManager::minutesSinceLastSave() const {
+    using namespace std::chrono;
+    auto last = system_clock::from_time_t(activePet().getLastSaved());
+    auto now  = system_clock::now();
+    return duration_cast<minutes>(now - last).count();
+}
 
+static int jsonGetInt(const std::string& json, const std::string& key, int def = 0) {
+    auto pos = json.find("\"" + key + "\"");
+    if (pos == std::string::npos) return def;
+    pos = json.find(':', pos + key.size() + 2);
+    if (pos == std::string::npos) return def;
+    ++pos;
+    while (pos < json.size() && json[pos] == ' ') ++pos;
+    auto end = json.find_first_of(",}\n", pos);
+    std::string tok = json.substr(pos, end - pos);
+    while (!tok.empty() && (tok.back() == ' ' || tok.back() == '\r')) tok.pop_back();
+    try { return std::stoi(tok); } catch (...) { return def; }
+}
+
+bool GameManager::load(std::string& outMsg) {
+    if (loadV2(outMsg))     return true;
+    if (loadLegacy(outMsg)) return true;
+    return false;
+}
+
+void GameManager::newGame(const std::string& petName) {
+    std::string name = petName.empty() ? "Pixel" : petName;
+    pets_.push_back(std::make_unique<Pet>(name));
+    activePetIdx_ = 0;
     rebuildFSM();
     audio_.start();
-
-    while (running_) {
-        std::string fsmMsg = fsm_->tick();
-
-        if (!activePet().isAlive()) {
-            Display::clearScreen();
-            std::cout << Color::BRIGHT_RED << Color::BOLD
-                      << "\n  " << activePet().getName() << " has passed away...\n\n"
-                      << Color::RESET
-                      << "  Interactions: " << activePet().getInteractionCount() << "\n"
-                      << "  Stage reached: " << activePet().getStageName() << "\n\n";
-
-            if (pets_.size() > 1) {
-                std::cout << Color::YELLOW
-                          << "  You still have other pets. Visit the Pet Box.\n"
-                          << Color::RESET;
-                pause();
-                for (int i = 0; i < static_cast<int>(pets_.size()); ++i) {
-                    if (pets_[static_cast<size_t>(i)]->isAlive()) {
-                        activePetIdx_ = i;
-                        rebuildFSM();
-                        break;
-                    }
-                }
-                bool anyAlive = false;
-                for (const auto& p : pets_)
-                    if (p->isAlive()) { anyAlive = true; break; }
-                if (!anyAlive) {
-                    std::cout << Color::DIM << "  All pets have passed away. Thanks for playing.\n\n"
-                              << Color::RESET;
-                    break;
-                }
-                continue;
-            }
-            std::cout << Color::DIM << "  Thanks for playing.\n\n" << Color::RESET;
-            break;
-        }
-
-        Display::clearScreen();
-        if (!fsmMsg.empty())
-            std::cout << "\n" << fsmMsg << "\n";
-
-        printStatus();
-
-        if (!fsm_->canInteract()) {
-            printSleepMenu();
-            std::cout << Color::BOLD << "\n  Your choice: " << Color::RESET;
-            std::string input;
-            std::getline(std::cin, input);
-            if      (input == "1") handleWait();
-            else if (input == "2") { printStatus(); pause(); }
-            else if (input == "3") handleQuit();
-            else std::cout << Color::YELLOW << "  Invalid choice.\n" << Color::RESET;
-        } else {
-            printMainMenu();
-            std::cout << Color::BOLD << "\n  Your choice: " << Color::RESET;
-            std::string input;
-            std::getline(std::cin, input);
-            if      (input == "1") handleFeed();
-            else if (input == "2") handlePlay();
-            else if (input == "3") handleRest();
-            else if (input == "4") handleUseItem();
-            else if (input == "5") handleShop();
-            else if (input == "6") handlePetBox();
-            else if (input == "7") handleQuit();
-            else std::cout << Color::YELLOW << "  Invalid choice.\n" << Color::RESET;
-        }
-    }
-
-    audio_.stop();
+    save();
 }
 
-bool GameManager::loadGame() {
+bool GameManager::loadV2(std::string& outMsg) {
     std::ifstream file(saveFilePath_);
     if (!file.is_open()) return false;
 
@@ -137,34 +104,20 @@ bool GameManager::loadGame() {
     std::string json = buf.str();
     if (json.empty()) return false;
 
-    auto versionStr = [&]() -> std::string {
-        auto pos = json.find("\"version\"");
-        if (pos == std::string::npos) return "";
-        pos = json.find(':', pos + 9);
-        if (pos == std::string::npos) return "";
-        ++pos;
-        while (pos < json.size() && json[pos] == ' ') ++pos;
-        auto end = json.find_first_of(",}\n", pos);
-        return json.substr(pos, end - pos);
-    }();
-    if (versionStr != "2") return false;
+    auto vPos = json.find("\"version\"");
+    if (vPos == std::string::npos) return false;
+    vPos = json.find(':', vPos + 9);
+    if (vPos == std::string::npos) return false;
+    ++vPos;
+    while (vPos < json.size() && json[vPos] == ' ') ++vPos;
+    auto vEnd = json.find_first_of(",}\n", vPos);
+    std::string vStr = json.substr(vPos, vEnd - vPos);
+    while (!vStr.empty() && (vStr.back() == ' ' || vStr.back() == '\r')) vStr.pop_back();
+    if (vStr != "2") return false;
 
-    auto getInt = [&](const std::string& key) -> int {
-        auto pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return 0;
-        pos = json.find(':', pos + key.size() + 2);
-        if (pos == std::string::npos) return 0;
-        ++pos;
-        while (pos < json.size() && json[pos] == ' ') ++pos;
-        auto end = json.find_first_of(",}\n", pos);
-        std::string tok = json.substr(pos, end - pos);
-        while (!tok.empty() && (tok.back() == ' ' || tok.back() == '\r')) tok.pop_back();
-        try { return std::stoi(tok); } catch (...) { return 0; }
-    };
-
-    int petCount = getInt("petCount");
+    int petCount = jsonGetInt(json, "petCount", 0);
     if (petCount <= 0) return false;
-    activePetIdx_ = getInt("activePet");
+    activePetIdx_ = jsonGetInt(json, "activePet", 0);
 
     try {
         for (int i = 0; i < petCount; ++i) {
@@ -172,8 +125,7 @@ bool GameManager::loadGame() {
             pets_.push_back(std::make_unique<Pet>(Pet::deserializeFromJson(json, prefix)));
         }
     } catch (const std::exception& ex) {
-        std::cerr << Color::BRIGHT_RED << "  Save corrupted: " << ex.what()
-                  << "\n  Starting fresh.\n" << Color::RESET;
+        outMsg = std::string("Save corrupted: ") + ex.what() + ". Starting fresh.";
         pets_.clear();
         return false;
     }
@@ -183,21 +135,20 @@ bool GameManager::loadGame() {
     if (activePetIdx_ < 0 || activePetIdx_ >= static_cast<int>(pets_.size()))
         activePetIdx_ = 0;
 
+    rebuildFSM();
+    audio_.start();
+
     long long mins = minutesSinceLastSave();
     if (mins > 0) {
-        std::cout << Color::BRIGHT_YELLOW
-                  << "\nWelcome back! Checking on " << activePet().getName() << "...\n"
-                  << Color::RESET;
-        std::cout << activePet().applyOfflineDecay(mins);
-        pause();
+        std::string decay = stripAnsi(activePet().applyOfflineDecay(mins));
+        outMsg = "Welcome back! " + decay;
     } else {
-        std::cout << Color::BRIGHT_GREEN
-                  << "\nWelcome back, " << activePet().getName() << "!\n" << Color::RESET;
+        outMsg = "Welcome back, " + activePet().getName() + "!";
     }
     return true;
 }
 
-bool GameManager::loadLegacyGame() {
+bool GameManager::loadLegacy(std::string& outMsg) {
     std::ifstream file(legacySavePath_);
     if (!file.is_open()) return false;
 
@@ -209,33 +160,29 @@ bool GameManager::loadLegacyGame() {
     try {
         pets_.push_back(std::make_unique<Pet>(Pet::deserialize(json)));
     } catch (const std::exception& ex) {
-        std::cerr << Color::BRIGHT_RED
-                  << "  Legacy save corrupted: " << ex.what() << "\n" << Color::RESET;
+        outMsg = std::string("Legacy save corrupted: ") + ex.what();
         return false;
     }
 
     activePetIdx_ = 0;
-    std::cout << Color::BRIGHT_CYAN
-              << "\n  Migrated save from v1. Welcome back, "
-              << activePet().getName() << "!\n" << Color::RESET;
+    rebuildFSM();
+    audio_.start();
 
     long long mins = minutesSinceLastSave();
+    std::string decay;
     if (mins > 0)
-        std::cout << activePet().applyOfflineDecay(mins);
-    pause();
+        decay = stripAnsi(activePet().applyOfflineDecay(mins));
+
+    outMsg = "Migrated v1 save. Welcome back, " + activePet().getName() + "! " + decay;
     return true;
 }
 
-void GameManager::saveGame() {
+void GameManager::save() {
+    if (pets_.empty()) return;
     activePet().stampSaveTime();
 
     std::ofstream file(saveFilePath_);
-    if (!file.is_open()) {
-        std::cerr << Color::BRIGHT_RED
-                  << "  Warning: could not write save file at " << saveFilePath_
-                  << "\n" << Color::RESET;
-        return;
-    }
+    if (!file.is_open()) return;
 
     std::ostringstream ss;
     ss << "{\n"
@@ -257,403 +204,6 @@ void GameManager::saveGame() {
     result += "}\n";
 
     file << result;
-    std::cout << Color::DIM << "\n  Game saved.\n" << Color::RESET;
-}
-
-long long GameManager::minutesSinceLastSave() const {
-    using namespace std::chrono;
-    auto last = system_clock::from_time_t(activePet().getLastSaved());
-    auto now  = system_clock::now();
-    return duration_cast<minutes>(now - last).count();
-}
-
-void GameManager::printStatus() const {
-    const Pet& pet = activePet();
-    Display::printBanner("  " + pet.getName() + "  [" + pet.getStageName() + "]  ");
-
-    std::cout << "\n" << Display::getAsciiArt(pet.getStage(), pet.getCurrentMood()) << "\n";
-
-    const auto& s = pet.getStats();
-    const auto& g = pet.getGenome();
-    std::cout << Display::statLine("Hunger",    s.hunger,    g.maxHunger)    << "\n"
-              << Display::statLine("Happiness", s.happiness, g.maxHappiness) << "\n"
-              << Display::statLine("Energy",    s.energy,    g.maxEnergy)    << "\n"
-              << Display::statLine("Health",    s.health,    g.maxHealth)    << "\n";
-
-    std::cout << Color::BOLD << "\n  State:  " << Color::RESET
-              << Color::BRIGHT_CYAN << fsm_->getStateName() << Color::RESET
-              << Color::DIM << "  (" << fsm_->getStateDesc() << ")" << Color::RESET << "\n";
-
-    if (pet.isSick())
-        std::cout << Color::BRIGHT_RED << Color::BOLD
-                  << "  !! " << pet.getName() << " is SICK !!\n" << Color::RESET;
-
-    int next = pet.nextEvolutionAt();
-    if (next > 0) {
-        int count = pet.getInteractionCount();
-        std::cout << Color::DIM << "  Evolution: " << count << "/" << next
-                  << " interactions";
-        int v = pet.getGenome().evolutionVariant;
-        if (v == 1)      std::cout << " (Quick lineage)";
-        else if (v == 2) std::cout << " (Robust lineage)";
-        std::cout << "\n" << Color::RESET;
-    } else {
-        std::cout << Color::BRIGHT_MAGENTA << "  " << pet.getName()
-                  << " has reached full evolution!\n" << Color::RESET;
-    }
-
-    std::cout << Color::BRIGHT_YELLOW << "  Coins: " << inventory_.getCurrency()
-              << Color::RESET << "   ";
-    if (audio_.isPlaying())
-        std::cout << Color::DIM << "  Playing: " << audio_.getCurrentTrack() << Color::RESET;
-    std::cout << "\n";
-
-    if (pets_.size() > 1)
-        std::cout << Color::DIM << "  Pet Box: " << pets_.size() << " pets owned  "
-                  << "(active: " << activePet().getName() << ")\n" << Color::RESET;
-
-    Display::printDivider();
-}
-
-void GameManager::printMainMenu() const {
-    std::cout << Color::BOLD
-              << "\n  1) Feed   2) Play   3) Rest   4) Use Item\n"
-              << "  5) Shop   6) Pet Box\n"
-              << "  7) Quit\n"
-              << Color::RESET;
-}
-
-void GameManager::printSleepMenu() const {
-    std::cout << Color::BLUE << Color::BOLD
-              << "\n  " << activePet().getName() << " is sleeping...\n"
-              << "  (Normal interaction is locked until energy recovers.)\n\n"
-              << Color::RESET << Color::BOLD
-              << "  1) Wait (rest 15 min)   2) Status   3) Quit\n"
-              << Color::RESET;
-}
-
-void GameManager::handleFeed() {
-    std::cout << Color::BRIGHT_GREEN << "\n  Nom nom nom! " << activePet().getName()
-              << " is eating...\n" << Color::RESET;
-    activePet().feed(30);
-    std::string ev = postActionTick();
-    if (!ev.empty()) std::cout << "\n" << ev << "\n";
-    pause();
-}
-
-void GameManager::handlePlay() {
-    fsm_->transitionTo(FSMState::Playing);
-    std::cout << Color::BRIGHT_YELLOW << "\n  Time to play!\n" << Color::RESET;
-
-    int bonus = Minigame::runGuessingGame();
-    activePet().receiveHappinessBoost(bonus);
-
-    bool won = (bonus >= 30);
-    int coins = won ? 50 : 15;
-    inventory_.addCurrency(coins);
-    std::cout << (won ? Color::BRIGHT_GREEN : Color::YELLOW)
-              << "  Earned " << coins << " coins!\n" << Color::RESET;
-
-    std::string ev = postActionTick();
-    if (!ev.empty()) std::cout << "\n" << ev << "\n";
-    pause();
-}
-
-void GameManager::handleRest() {
-    std::cout << Color::BLUE << "\n  " << activePet().getName()
-              << " is resting...\n  z Z z Z\n" << Color::RESET;
-    activePet().rest();
-    std::string ev = postActionTick();
-    if (!ev.empty()) std::cout << "\n" << ev << "\n";
-    pause();
-}
-
-void GameManager::handleUseItem() {
-    auto items = inventory_.getAllItems();
-    if (items.empty()) {
-        std::cout << Color::YELLOW
-                  << "\n  Your inventory is empty. Visit the Shop (option 5)!\n"
-                  << Color::RESET;
-        pause();
-        return;
-    }
-
-    Display::clearScreen();
-    Display::printBanner("  INVENTORY  ");
-    std::cout << Color::BRIGHT_YELLOW << "\n  Coins: " << inventory_.getCurrency()
-              << "\n\n" << Color::RESET;
-
-    int idx = 1;
-    for (const auto& [item, qty] : items) {
-        const char* typeColor =
-            (item->getType() == "Food")     ? Color::BRIGHT_GREEN  :
-            (item->getType() == "Medicine") ? Color::BRIGHT_RED    :
-                                              Color::BRIGHT_MAGENTA;
-        std::cout << "  " << Color::BOLD << idx++ << Color::RESET << ")  "
-                  << std::left << std::setw(18) << item->getName()
-                  << typeColor << std::setw(12) << item->getType() << Color::RESET
-                  << " x" << qty << "\n"
-                  << Color::DIM << "        " << item->getDescription()
-                  << Color::RESET << "\n";
-    }
-
-    std::cout << "\n  " << Color::BOLD << idx << Color::RESET << ") Back\n";
-    std::cout << Color::BOLD << "\n  Choose item to use: " << Color::RESET;
-
-    std::string input;
-    std::getline(std::cin, input);
-    int choice = 0;
-    try { choice = std::stoi(input); } catch (...) {}
-
-    if (choice < 1 || choice > static_cast<int>(items.size())) return;
-
-    const auto& [chosenItem, qty] = items[static_cast<size_t>(choice) - 1];
-    inventory_.removeItem(chosenItem->getId(), 1);
-
-    std::string result = chosenItem->apply(activePet());
-    std::cout << Color::BRIGHT_GREEN << "\n  " << result << "\n" << Color::RESET;
-
-    std::string ev = postActionTick();
-    if (!ev.empty()) std::cout << "\n" << ev << "\n";
-    pause();
-}
-
-void GameManager::handleShop() {
-    Shop::run(inventory_, activePet().getName());
-}
-
-void GameManager::handleRenamePet() {
-    std::cout << Color::BRIGHT_CYAN
-              << "\n  Current name: " << activePet().getName() << "\n"
-              << "  Enter a new name: " << Color::RESET;
-
-    std::string name;
-    std::getline(std::cin, name);
-    if (name.empty()) name = "Pixel";
-
-    if (name == activePet().getName()) {
-        std::cout << Color::YELLOW << "  That pet already has that name.\n" << Color::RESET;
-        pause();
-        return;
-    }
-
-    activePet().setName(name);
-    std::cout << Color::BRIGHT_GREEN
-              << "  Your pet is now called " << name << "!\n" << Color::RESET;
-
-    saveGame();
-    pause();
-}
-
-void GameManager::handleAdoptPet() {
-    if (static_cast<int>(pets_.size()) >= MAX_PETS) {
-        std::cout << Color::YELLOW
-                  << "\n  Pet Box is full! (" << MAX_PETS << "/" << MAX_PETS << ")\n"
-                  << Color::RESET;
-        pause();
-        return;
-    }
-
-    std::cout << Color::BRIGHT_CYAN << "\n  Adopt a new baby pet!\n" << Color::RESET;
-    std::cout << "  Name your new pet: ";
-
-    std::string name;
-    std::getline(std::cin, name);
-    if (name.empty()) name = "Pixel";
-
-    pets_.push_back(std::make_unique<Pet>(name));
-    std::cout << Color::BRIGHT_GREEN
-              << "  Welcome home, " << name << "!\n" << Color::RESET;
-
-    saveGame();
-    pause();
-}
-
-void GameManager::handlePetBox() {
-    while (true) {
-        Display::clearScreen();
-        Display::printBanner("  PET BOX  ");
-
-        std::cout << "\n";
-        for (int i = 0; i < static_cast<int>(pets_.size()); ++i) {
-            const auto& p = *pets_[static_cast<size_t>(i)];
-            const char* stageColor =
-                (p.getStage() == EvolutionStage::Adult) ? Color::BRIGHT_MAGENTA :
-                (p.getStage() == EvolutionStage::Teen)  ? Color::BRIGHT_CYAN    :
-                (p.getStage() == EvolutionStage::Child) ? Color::BRIGHT_GREEN   :
-                                                          Color::BRIGHT_YELLOW;
-            std::cout << "  " << Color::BOLD << (i + 1) << Color::RESET << ") "
-                      << stageColor << p.getName() << Color::RESET
-                      << " [" << p.getStageName() << "]"
-                      << (i == activePetIdx_ ? Color::BRIGHT_CYAN + std::string(" ← Active") + Color::RESET : "")
-                      << (!p.isAlive() ? Color::BRIGHT_RED + std::string(" (deceased)") + Color::RESET : "")
-                      << "\n"
-                      << Color::DIM << "     HP:" << static_cast<int>(p.getStats().health)
-                      << " | Evo:" << p.getStageName()
-                      << " | Interactions:" << p.getInteractionCount()
-                      << " | Variant:" << p.getGenome().evolutionVariant
-                      << Color::RESET << "\n";
-        }
-
-        std::cout << "\n"
-                  << Color::BOLD
-                  << "  A) Adopt new pet\n"
-                  << "  R) Rename active pet\n"
-                  << "  S) Switch active pet\n"
-                  << "  B) Breed two Adults\n"
-                  << "  0) Back\n"
-                  << Color::RESET;
-
-        std::cout << Color::BOLD << "\n  Choice: " << Color::RESET;
-        std::string input;
-        std::getline(std::cin, input);
-
-        if (input == "0") break;
-
-        if (input == "A" || input == "a") {
-            handleAdoptPet();
-            continue;
-        }
-
-        if (input == "R" || input == "r") {
-            handleRenamePet();
-            continue;
-        }
-
-        if (input == "S" || input == "s") {
-            if (pets_.size() < 2) {
-                std::cout << Color::YELLOW << "  Only one pet — nothing to switch to.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-            std::cout << "  Switch to which pet? (1-" << pets_.size() << "): ";
-            std::getline(std::cin, input);
-            int idx = 0;
-            try { idx = std::stoi(input) - 1; } catch (...) {}
-            if (idx < 0 || idx >= static_cast<int>(pets_.size())) {
-                std::cout << Color::YELLOW << "  Invalid choice.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-            if (!pets_[static_cast<size_t>(idx)]->isAlive()) {
-                std::cout << Color::BRIGHT_RED << "  That pet has passed away.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-            activePetIdx_ = idx;
-            rebuildFSM();
-            std::cout << Color::BRIGHT_GREEN
-                      << "  Now caring for " << activePet().getName() << "!\n" << Color::RESET;
-            pause();
-            continue;
-        }
-
-        if (input == "B" || input == "b") {
-            std::vector<int> adultIndices;
-            for (int i = 0; i < static_cast<int>(pets_.size()); ++i) {
-                if (pets_[static_cast<size_t>(i)]->getStage() == EvolutionStage::Adult &&
-                    pets_[static_cast<size_t>(i)]->isAlive())
-                    adultIndices.push_back(i);
-            }
-
-            if (adultIndices.size() < 2) {
-                std::cout << Color::YELLOW
-                          << "\n  You need at least 2 Adult pets to breed.\n"
-                          << "  Adult stage requires reaching the final evolution.\n"
-                          << Color::RESET;
-                pause();
-                continue;
-            }
-
-            if (static_cast<int>(pets_.size()) >= MAX_PETS) {
-                std::cout << Color::YELLOW
-                          << "\n  Pet Box is full! (" << MAX_PETS << "/" << MAX_PETS << ")\n"
-                          << Color::RESET;
-                pause();
-                continue;
-            }
-
-            std::cout << "\n  Adult pets available for breeding:\n";
-            for (int ai : adultIndices)
-                std::cout << "    " << (ai + 1) << ") " << pets_[static_cast<size_t>(ai)]->getName() << "\n";
-
-            std::cout << "  Select Parent A (number): ";
-            std::getline(std::cin, input);
-            int idxA = 0;
-            try { idxA = std::stoi(input) - 1; } catch (...) {}
-
-            std::cout << "  Select Parent B (number): ";
-            std::getline(std::cin, input);
-            int idxB = 0;
-            try { idxB = std::stoi(input) - 1; } catch (...) {}
-
-            if (idxA == idxB ||
-                idxA < 0 || idxA >= static_cast<int>(pets_.size()) ||
-                idxB < 0 || idxB >= static_cast<int>(pets_.size())) {
-                std::cout << Color::YELLOW << "  Invalid parents.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-
-            if (pets_[static_cast<size_t>(idxA)]->getStage() != EvolutionStage::Adult ||
-                pets_[static_cast<size_t>(idxB)]->getStage() != EvolutionStage::Adult) {
-                std::cout << Color::YELLOW << "  Both parents must be Adult stage.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-
-            std::cout << "  Name the offspring: ";
-            std::getline(std::cin, input);
-            if (input.empty()) input = "Junior";
-
-            auto offspring = Genetics::breed(*pets_[static_cast<size_t>(idxA)],
-                                             *pets_[static_cast<size_t>(idxB)],
-                                             input);
-            if (!offspring) {
-                std::cout << Color::YELLOW << "  Breeding failed.\n" << Color::RESET;
-                pause();
-                continue;
-            }
-
-            const Genome& g = offspring->getGenome();
-            std::cout << Color::BRIGHT_MAGENTA << Color::BOLD
-                      << "\n  A new pet was born: " << offspring->getName() << "!\n"
-                      << Color::RESET
-                      << Color::DIM
-                      << "  Genome — Max Hunger:"    << static_cast<int>(g.maxHunger)
-                      << " / Max Health:"             << static_cast<int>(g.maxHealth)
-                      << " / Decay Resistance:"       << std::fixed << std::setprecision(2)
-                                                      << g.decayResistance
-                      << " / Evo Variant:"            << g.evolutionVariant
-                      << "\n" << Color::RESET;
-
-            pets_.push_back(std::move(offspring));
-            saveGame();
-            pause();
-            continue;
-        }
-    }
-}
-
-void GameManager::handleWait() {
-    Pet& pet = activePet();
-    std::cout << Color::BLUE << "\n  Time passes... z Z z Z\n" << Color::RESET;
-
-    pet.addEnergy(15.0f);
-    pet.applyOfflineDecay(15);
-
-    std::string fsmMsg = fsm_->tick();
-    if (!fsmMsg.empty())
-        std::cout << "\n" << fsmMsg << "\n";
-
-    saveGame();
-    pause();
-}
-
-void GameManager::handleQuit() {
-    saveGame();
-    std::cout << Color::BRIGHT_CYAN << "  Goodbye! See you soon!\n" << Color::RESET;
-    running_ = false;
 }
 
 std::string GameManager::postActionTick() {
@@ -661,24 +211,171 @@ std::string GameManager::postActionTick() {
     pet.applyInteractionDecay();
     pet.incrementInteractions();
 
-    std::string output;
+    std::string out;
 
-    bool evolved = pet.checkAndEvolve();
-    if (evolved) {
-        output += Color::BRIGHT_MAGENTA + std::string(Color::BOLD) +
-                  "\n  *** " + pet.getName() + " EVOLVED into a " +
-                  pet.getStageName() + "! ***\n" + Color::RESET;
-        output += Display::getAsciiArt(pet.getStage(), pet.getCurrentMood());
+    if (pet.checkAndEvolve()) {
+        out += "*** " + pet.getName() + " EVOLVED into a " + pet.getStageName() + "! ***";
     }
 
-    std::string event = pet.triggerRandomEvent();
-    if (!event.empty())
-        output += "\n" + event;
+    std::string ev = stripAnsi(pet.triggerRandomEvent());
+    if (!ev.empty()) out += (out.empty() ? "" : "\n") + ev;
 
-    std::string fsmMsg = fsm_->tick();
-    if (!fsmMsg.empty())
-        output += "\n" + fsmMsg;
+    std::string fsmMsg = stripAnsi(fsm_->tick());
+    if (!fsmMsg.empty()) out += (out.empty() ? "" : "\n") + fsmMsg;
 
-    saveGame();
-    return output;
+    save();
+    return out;
+}
+
+std::string GameManager::actionFeed() {
+    if (pets_.empty() || !activePet().isAlive())
+        return activePet().getName() + " can't eat right now.";
+    activePet().feed(30);
+    std::string ev = postActionTick();
+    std::string msg = activePet().getName() + " munched happily! (+30 Hunger)";
+    return ev.empty() ? msg : msg + "\n" + ev;
+}
+
+std::string GameManager::actionPlay(int happinessBonus) {
+    if (pets_.empty() || !activePet().isAlive())
+        return "Can't play right now.";
+    activePet().receiveHappinessBoost(happinessBonus);
+    int coins = (happinessBonus >= 30) ? 50 : 15;
+    inventory_.addCurrency(coins);
+    std::string ev = postActionTick();
+    std::string msg = activePet().getName() + " had fun! (+" + std::to_string(happinessBonus) +
+                      " Happiness, +" + std::to_string(coins) + " coins)";
+    return ev.empty() ? msg : msg + "\n" + ev;
+}
+
+std::string GameManager::actionRest() {
+    if (pets_.empty() || !activePet().isAlive())
+        return "Can't rest right now.";
+    activePet().rest();
+    std::string ev = postActionTick();
+    std::string msg = activePet().getName() + " rested. z Z z Z (+40 Energy)";
+    return ev.empty() ? msg : msg + "\n" + ev;
+}
+
+std::string GameManager::actionUseItem(int itemIdx) {
+    auto items = inventory_.getAllItems();
+    if (itemIdx < 0 || itemIdx >= static_cast<int>(items.size()))
+        return "Invalid item selection.";
+    const auto& [item, qty] = items[static_cast<size_t>(itemIdx)];
+    (void)qty;
+    inventory_.removeItem(item->getId(), 1);
+    std::string result = item->apply(activePet());
+    std::string ev = postActionTick();
+    return ev.empty() ? result : result + "\n" + ev;
+}
+
+std::string GameManager::actionPurchase(const std::string& itemId) {
+    auto item = Shop::getItem(itemId);
+    if (!item) return "Item not found in shop.";
+    if (inventory_.getCurrency() < item->getPrice()) {
+        return "Not enough coins! Need " + std::to_string(item->getPrice()) +
+               ", have " + std::to_string(inventory_.getCurrency()) + ".";
+    }
+    inventory_.spendCurrency(item->getPrice());
+    inventory_.addItem(item, 1);
+    save();
+    return "Bought " + item->getName() + " for " + std::to_string(item->getPrice()) +
+           " coins. (" + std::to_string(inventory_.getCurrency()) + " remaining)";
+}
+
+std::string GameManager::actionWait() {
+    Pet& pet = activePet();
+    pet.addEnergy(15.0f);
+    std::string decay = stripAnsi(pet.applyOfflineDecay(15));
+    std::string fsmMsg = stripAnsi(fsm_->tick());
+    save();
+    std::string msg = "Time passes... z Z z Z (+15 Energy)";
+    if (!decay.empty())  msg += "\n" + decay;
+    if (!fsmMsg.empty()) msg += "\n" + fsmMsg;
+    return msg;
+}
+
+std::string GameManager::actionAdoptPet(const std::string& name) {
+    if (static_cast<int>(pets_.size()) >= MAX_PETS)
+        return "Pet Box is full! (" + std::to_string(MAX_PETS) + "/" +
+               std::to_string(MAX_PETS) + ")";
+    std::string n = name.empty() ? "Pixel" : name;
+    pets_.push_back(std::make_unique<Pet>(n));
+    save();
+    return "Welcome home, " + n + "!";
+}
+
+std::string GameManager::actionRenamePet(const std::string& name) {
+    std::string n = name.empty() ? "Pixel" : name;
+    if (n == activePet().getName()) return "That's already " + n + "'s name.";
+    std::string old = activePet().getName();
+    activePet().setName(n);
+    save();
+    return old + " is now called " + n + "!";
+}
+
+std::string GameManager::actionSwitchPet(int idx) {
+    if (idx < 0 || idx >= static_cast<int>(pets_.size()))
+        return "Invalid pet index.";
+    if (!pets_[static_cast<size_t>(idx)]->isAlive())
+        return "That pet has passed away.";
+    activePetIdx_ = idx;
+    rebuildFSM();
+    save();
+    return "Now caring for " + activePet().getName() + "!";
+}
+
+std::string GameManager::actionBreedPets(int idxA, int idxB,
+                                         const std::string& offspringName) {
+    if (static_cast<int>(pets_.size()) >= MAX_PETS)
+        return "Pet Box is full!";
+    if (idxA == idxB || idxA < 0 || idxB < 0 ||
+        idxA >= static_cast<int>(pets_.size()) ||
+        idxB >= static_cast<int>(pets_.size()))
+        return "Invalid parents selected.";
+
+    const auto& pA = *pets_[static_cast<size_t>(idxA)];
+    const auto& pB = *pets_[static_cast<size_t>(idxB)];
+    if (pA.getStage() != EvolutionStage::Adult || pB.getStage() != EvolutionStage::Adult)
+        return "Both parents must be Adult stage.";
+    if (!pA.isAlive() || !pB.isAlive())
+        return "Both parents must be alive.";
+
+    std::string n = offspringName.empty() ? "Junior" : offspringName;
+    auto offspring = Genetics::breed(pA, pB, n);
+    if (!offspring) return "Breeding failed unexpectedly.";
+
+    const Genome& g = offspring->getGenome();
+    std::ostringstream msg;
+    msg << "A new pet was born: " << offspring->getName() << "!\n"
+        << "Genome — MaxHunger:" << static_cast<int>(g.maxHunger)
+        << " MaxHealth:"         << static_cast<int>(g.maxHealth)
+        << " DecayRes:"          << std::fixed << std::setprecision(2) << g.decayResistance
+        << " Variant:"           << g.evolutionVariant;
+
+    pets_.push_back(std::move(offspring));
+    save();
+    return msg.str();
+}
+
+void GameManager::actionQuit() {
+    save();
+    running_ = false;
+}
+
+std::string GameManager::tick() {
+    if (!running_ || pets_.empty()) return "";
+    Pet& pet = activePet();
+    if (!pet.isAlive()) return "";
+
+    pet.applyRealtimeTick();   // 1 game-minute of decay
+
+    std::string msg = stripAnsi(fsm_->tick());
+
+    ++ticksSinceSave_;
+    if (ticksSinceSave_ >= 6) {   // auto-save every ~6 ticks = ~60 seconds
+        save();
+        ticksSinceSave_ = 0;
+    }
+    return msg;
 }

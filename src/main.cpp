@@ -1,4 +1,4 @@
-#include "GameManager.h"
+#include "TuiApp.h"
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
@@ -10,8 +10,8 @@ int main() {
     const std::string legacySaveFile = "pet_save.json";
 
     try {
-        GameManager gm(saveFile, legacySaveFile);
-        gm.run();
+        TuiApp app(saveFile, legacySaveFile);
+        app.run();
     } catch (const std::exception& ex) {
         std::cerr << "Fatal error: " << ex.what() << "\n";
         return 1;

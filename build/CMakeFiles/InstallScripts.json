@@ -1,7 +1,10 @@
 {
 	"InstallScripts" : 
 	[
-		"/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/cmake_install.cmake"
+		"/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/cmake_install.cmake",
+		"/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/_deps/ftxui-build/cmake_install.cmake",
+		"/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/_deps/ftxui-build/examples/cmake_install.cmake",
+		"/Users/carlofedolfi/Documents/GitHub/tamagotchi-clone/build/_deps/ftxui-build/doc/cmake_install.cmake"
 	],
 	"Parallel" : false
 }
